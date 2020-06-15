@@ -29,24 +29,23 @@ def proc_np_hv(pred, return_coords=False):
     blb = measurements.label(blb)[0]
     blb = remove_small_objects(blb, min_size=10)
     blb[blb > 0] = 1  # background is 0 already
-    #####
 
     h_dir = cv2.normalize(h_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
     v_dir = cv2.normalize(v_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-    h_dir_raw = None  # clear variable
-    v_dir_raw = None  # clear variable
+    h_dir_raw = None
+    v_dir_raw = None
 
     sobelh = cv2.Sobel(h_dir, cv2.CV_64F, 1, 0, ksize=21)
     sobelv = cv2.Sobel(v_dir, cv2.CV_64F, 0, 1, ksize=21)
-    h_dir = None  # clear variable
-    v_dir = None  # clear variable
+    h_dir = None
+    v_dir = None
 
     sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
     sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
 
     overall = np.maximum(sobelh, sobelv)
-    sobelh = None  # clear variable
-    sobelv = None  # clear variable
+    sobelh = None
+    sobelv = None
     overall = overall - (1 - blb)
     overall[overall < 0] = 0
 
@@ -57,7 +56,7 @@ def proc_np_hv(pred, return_coords=False):
     overall[overall >= 0.5] = 1
     overall[overall < 0.5] = 0
     marker = blb - overall
-    overall = None  # clear variable
+    overall = None
     marker[marker < 0] = 0
     marker = binary_fill_holes(marker).astype('uint8')
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))

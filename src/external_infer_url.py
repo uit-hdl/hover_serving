@@ -27,7 +27,6 @@ class InfererURL():
 
     def __init__(self, input_img, save_dir):
         # input_img as PIL
-        # values for np_hv model graph
         self.server_url = os.environ['ENDPOINT']
         assert requests.get(':'.join(self.server_url.split(':')[:-1])).ok is True
 
@@ -36,11 +35,11 @@ class InfererURL():
 
         data_config = defaultdict(lambda: None, yaml.load(open('config.yml'), Loader=yaml.FullLoader)[self.model_config])
 
-        self.mask_shape = data_config['step_size'] # [80,  80] # [164, 164] 
-        self.input_shape = data_config['win_size'] # [270, 270] # [256, 256] 
-        self.nr_types = data_config['nr_types'] # 5 # 6  # denotes number of classes (including BG) for nuclear type classification
-        self.input_norm = data_config['input_norm'] # True
-        self.remap_labels = data_config['remap_labels'] # False
+        self.mask_shape = data_config['step_size']
+        self.input_shape = data_config['win_size']
+        self.nr_types = data_config['nr_types']
+        self.input_norm = data_config['input_norm']
+        self.remap_labels = data_config['remap_labels']
 
         self.inf_batch_size = 25
         self.eval_inf_input_tensor_names = ['images:0']
@@ -186,7 +185,6 @@ class InfererURL():
         #         'inst_centroid': pred_inst_centroid}
         # overlaid_output = visualize_instances(pred_inst, image, (self.nr_types, pred_inst_type[:, None])) #cfg.nr_types + 1
         # overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-        # return (overlaid_output, pred)
 
         # with open(os.path.join(proc_dir, f'{basename}.log'), 'w') as log_file:
         #     unique, counts = np.unique(pred_inst_type[:, None], return_counts=True)
