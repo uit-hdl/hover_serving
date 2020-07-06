@@ -1,4 +1,5 @@
 import os
+import sys
 import math
 import timeit
 import argparse
@@ -95,7 +96,7 @@ class InfererURL():
         diff_w = win_size[1] - step_size[1]
         padl = diff_w // 2
         padr = last_w + win_size[1] - im_w
-
+        
         x = np.lib.pad(x, ((padt, padb), (padl, padr), (0, 0)), 'reflect')
 
         sub_patches = []
@@ -121,7 +122,7 @@ class InfererURL():
         # Assemble back into full image
         output_patch_shape = np.squeeze(pred_map[0]).shape
         ch = 1 if len(output_patch_shape) == 2 else output_patch_shape[-1]
-
+        
         # Assemble back into full image
         pred_map = np.squeeze(np.array(pred_map))
         pred_map = np.reshape(pred_map, (nr_step_h, nr_step_w) + pred_map.shape[1:])
@@ -160,9 +161,9 @@ class InfererURL():
         if (self.remap_labels):
             pred_inst = proc_utils.remap_label(pred_inst, by_size=True)
 
-        pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])               
+        pred_type_out = np.zeros([pred_type.shape[0], pred_type.shape[1]])
         # * Get class of each instance id, stored at index id-1
-        pred_id_list = list(np.unique(pred_inst))[1:] # exclude background ID
+        pred_id_list = list(np.unique(pred_inst))[1:]  # exclude background ID
         pred_inst_type = np.full(len(pred_id_list), 0, dtype=np.int32)
         for idx, inst_id in enumerate(pred_id_list):
             inst_tmp = pred_inst == inst_id
@@ -196,6 +197,7 @@ class InfererURL():
         inputs - outputs
         instances - predictions
         """
+        print (sys.getsizeof(json.dumps({"inputs": np.array(subpatch).tolist()})))
         predict_request = json.dumps({"inputs": np.array(subpatch).tolist()})
         response = requests.post(self.server_url, data=predict_request)
         response.raise_for_status()
@@ -203,7 +205,7 @@ class InfererURL():
         return prediction  # [0]
 
     @_timer
-    def run(self, logging=False):
+    def run(self, logging=False, only_contours=True):
 
         temp_file = NamedTemporaryFile()
         name_out = os.path.join(self.save_dir, os.path.split(temp_file.name)[1])
@@ -214,17 +216,17 @@ class InfererURL():
         pred_map = self.__gen_prediction(self.input_img)
         pred_inst, pred_type = self.__process_instance(pred_map)
 
-        overlaid_output = visualize_instances(self.input_img, pred_inst, pred_type)
-        overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
+        if not only_contours:
+            overlaid_output = visualize_instances(self.input_img, pred_inst, pred_type)
+            overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
+            cv2.imwrite(f'{name_out}.png', overlaid_output)
+            if logging:
+                print(f"Saved processed image to <{name_out}.png>. {datetime.now().strftime('%H:%M:%S')}") # '%H:%M:%S.%f'
 
         # combine instance and type arrays for saving
         pred_inst = np.expand_dims(pred_inst, -1)
         pred_type = np.expand_dims(pred_type, -1)
         pred = np.dstack([pred_inst, pred_type])
-
-        cv2.imwrite(f'{name_out}.png', overlaid_output)
-        if logging:
-            print(f"Saved processed image to <{name_out}.png>. {datetime.now().strftime('%H:%M:%S')}") # '%H:%M:%S.%f'
 
         np.save(f'{name_out}.npy', pred)
         if logging:
