@@ -1,5 +1,4 @@
 import os
-import sys
 import math
 import timeit
 import argparse
@@ -197,7 +196,6 @@ class InfererURL():
         inputs - outputs
         instances - predictions
         """
-        print (sys.getsizeof(json.dumps({"inputs": np.array(subpatch).tolist()})))
         predict_request = json.dumps({"inputs": np.array(subpatch).tolist()})
         response = requests.post(self.server_url, data=predict_request)
         response.raise_for_status()
@@ -205,7 +203,7 @@ class InfererURL():
         return prediction  # [0]
 
     @_timer
-    def run(self, logging=False, only_contours=True):
+    def run(self, logging=False, only_contours=False):
 
         temp_file = NamedTemporaryFile()
         name_out = os.path.join(self.save_dir, os.path.split(temp_file.name)[1])
@@ -216,12 +214,19 @@ class InfererURL():
         pred_map = self.__gen_prediction(self.input_img)
         pred_inst, pred_type = self.__process_instance(pred_map)
 
-        if not only_contours:
-            overlaid_output = visualize_instances(self.input_img, pred_inst, pred_type)
-            overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
-            cv2.imwrite(f'{name_out}.png', overlaid_output)
+        if only_contours:
+            pred_inst = np.expand_dims(pred_inst, -1)
+            pred_inst[pred_inst > 0] = 1
+            np.save(f'{name_out}.npy', pred_inst)
             if logging:
-                print(f"Saved processed image to <{name_out}.png>. {datetime.now().strftime('%H:%M:%S')}") # '%H:%M:%S.%f'
+                print(f"Saved countours only (all cells) to <{name_out}.npy>. {datetime.now().strftime('%H:%M:%S')}")
+            return
+
+        overlaid_output = visualize_instances(self.input_img, pred_inst, pred_type)
+        overlaid_output = cv2.cvtColor(overlaid_output, cv2.COLOR_BGR2RGB)
+        cv2.imwrite(f'{name_out}.png', overlaid_output)
+        if logging:
+            print(f"Saved processed image to <{name_out}.png>. {datetime.now().strftime('%H:%M:%S')}") # '%H:%M:%S.%f'
 
         # combine instance and type arrays for saving
         pred_inst = np.expand_dims(pred_inst, -1)
@@ -240,14 +245,14 @@ if __name__ == '__main__':
         python external_infer_url.py --input_img '/data/input/data_consep/data/test/Images/test_1.png' --save_dir '/data/output/'
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='Comma separated list of GPU(s) to use.', default="0")
+    # parser.add_argument('--gpu', help='Comma separated list of GPU(s) to use.', default="0")
     parser.add_argument('--input_img', help='Full path to input image', required=True)
     parser.add_argument('--save_dir', help='Path to the directory to save result', required=True)
     args = parser.parse_args()
 
-    if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    n_gpus = len(args.gpu.split(','))
+    # if args.gpu:
+    #     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    # n_gpus = len(args.gpu.split(','))
 
     inferer = InfererURL(args.input_img, args.save_dir)
-    inferer.run(logging=True)
+    inferer.run(logging=True, only_contours=True)
