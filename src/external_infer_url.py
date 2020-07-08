@@ -1,5 +1,4 @@
 import os
-import sys
 import math
 import timeit
 import argparse
@@ -197,7 +196,6 @@ class InfererURL():
         inputs - outputs
         instances - predictions
         """
-        print (sys.getsizeof(json.dumps({"inputs": np.array(subpatch).tolist()})))
         predict_request = json.dumps({"inputs": np.array(subpatch).tolist()})
         response = requests.post(self.server_url, data=predict_request)
         response.raise_for_status()
@@ -240,14 +238,14 @@ if __name__ == '__main__':
         python external_infer_url.py --input_img '/data/input/data_consep/data/test/Images/test_1.png' --save_dir '/data/output/'
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='Comma separated list of GPU(s) to use.', default="0")
+    # parser.add_argument('--gpu', help='Comma separated list of GPU(s) to use.', default="0")
     parser.add_argument('--input_img', help='Full path to input image', required=True)
     parser.add_argument('--save_dir', help='Path to the directory to save result', required=True)
     args = parser.parse_args()
 
-    if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    n_gpus = len(args.gpu.split(','))
+    # if args.gpu:
+    #     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    # n_gpus = len(args.gpu.split(','))
 
     inferer = InfererURL(args.input_img, args.save_dir)
     inferer.run(logging=True)
