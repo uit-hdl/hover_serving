@@ -31,12 +31,12 @@ class InfererURL():
     input_img argument can be PIL image, numpy array or just path to .png file.
     """
 
-    def __init__(self, input_img):
+    def __init__(self, input_img, endpoint='', profile=''):
         # input_img as PIL
-        self.server_url = os.environ['ENDPOINT']
+        self.server_url = os.environ['ENDPOINT'] if 'ENDPOINT' in os.environ else endpoint
         assert requests.get(':'.join(self.server_url.split(':')[:-1])).ok is True
 
-        self.model_config = os.environ['H_PROFILE'] if 'H_PROFILE' in os.environ else ''
+        self.model_config = os.environ['H_PROFILE'] if 'H_PROFILE' in os.environ else profile
         assert self.model_config != ''
 
         data_config = defaultdict(lambda: None, yaml.load(open('config.yml'), Loader=yaml.FullLoader)[self.model_config])
