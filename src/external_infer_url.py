@@ -17,6 +17,12 @@ from PIL import Image
 from scripts.viz_utils import visualize_instances
 import scripts.process_utils as proc_utils
 
+def timer(func, *args, **kwargs):
+    start_time = timeit.default_timer()
+    result = func(*args, **kwargs)
+    elapsed = timeit.default_timer() - start_time
+    print(f"Finished {func.__name__}. Time elapsed: {'{:.3f}'.format(elapsed)} sec")
+    return result
 
 class InfererURL():
     """
@@ -25,7 +31,7 @@ class InfererURL():
     input_img argument can be PIL image, numpy array or just path to .png file.
     """
 
-    def __init__(self, input_img, save_dir):
+    def __init__(self, input_img):
         # input_img as PIL
         self.server_url = os.environ['ENDPOINT']
         assert requests.get(':'.join(self.server_url.split(':')[:-1])).ok is True
@@ -45,7 +51,7 @@ class InfererURL():
         self.eval_inf_input_tensor_names = ['images:0']
         self.eval_inf_output_tensor_names = ['predmap-coded:0']
 
-        self.save_dir = save_dir
+        # self.save_dir = save_dir
 
         # if it is PIL image
         if isinstance(input_img, Image.Image):
@@ -61,15 +67,6 @@ class InfererURL():
             self.input_img = cv2.cvtColor(cv2.imread(input_img), cv2.COLOR_BGR2RGB)
         else:
             raise Exception('Unsupported type of input image.')
-
-    def _timer(func):
-        def wrapped(self, *args, **kwargs):
-            start_time = timeit.default_timer()
-            func(self, *args, **kwargs)
-            elapsed = timeit.default_timer() - start_time
-            if (kwargs['logging'] is True):
-                print(f"Finished {func.__name__}. Time elapsed: {'{:.3f}'.format(elapsed)} sec")
-        return wrapped
 
     def __gen_prediction(self, x):
 
@@ -107,6 +104,7 @@ class InfererURL():
                 sub_patches.append(win)
 
         pred_map = deque()
+
         while len(sub_patches) > self.inf_batch_size:
             mini_batch = sub_patches[:self.inf_batch_size]
             sub_patches = sub_patches[self.inf_batch_size:]
@@ -196,17 +194,15 @@ class InfererURL():
         inputs - outputs
         instances - predictions
         """
-        predict_request = json.dumps({"inputs": np.array(subpatch).tolist()})
-        response = requests.post(self.server_url, data=predict_request)
-        response.raise_for_status()
-        prediction = np.array(response.json()['outputs'])
-        return prediction  # [0]
+        response = requests.post(self.server_url, data=json.dumps({"inputs": np.array(subpatch).tolist()}))
+        return np.array(response.json()['outputs'])  # [0]
 
-    @_timer
-    def run(self, logging=False, only_contours=False):
+    def run_save(self, save_dir=None, only_contours=False, logging=False):
+
+        assert (save_dir is not None)
 
         temp_file = NamedTemporaryFile()
-        name_out = os.path.join(self.save_dir, os.path.split(temp_file.name)[1])
+        name_out = os.path.join(save_dir, os.path.split(temp_file.name)[1])
 
         # pred_map = {'result': [self.__gen_prediction(self.input_img)]} # {'result':[pred_map]}
         # np.save(f"{name_out}_map.npy", pred_map)
@@ -237,22 +233,44 @@ class InfererURL():
         if logging:
             print(f"Saved pred to <{name_out}.npy>. {datetime.now().strftime('%H:%M:%S')}")
 
+    def run(self):
+        pred_map = self.__gen_prediction(self.input_img)
+        pred_inst, pred_type = self.__process_instance(pred_map)
+        pred_inst = np.expand_dims(pred_inst, -1)
+        pred_inst[pred_inst > 0] = 1
+        return pred_inst
+
 
 if __name__ == '__main__':
     """
-    Example: H_PROFILE=hv_seg_class_consep \
+    Example: 
+        H_PROFILE=hv_seg_class_consep \
         ENDPOINT=http://localhost:8501/v1/models/hover_consep:predict \
         python external_infer_url.py --input_img '/data/input/data_consep/data/test/Images/test_1.png' --save_dir '/data/output/'
+
+        or
+
+        H_PROFILE=hv_seg_class_consep \
+        ENDPOINT=http://localhost:8501/v1/models/hover_consep:predict \
+        python external_infer_url.py --input_img '/data/input/data_consep/data/test/Images/test_1.png'
+
+        or
+
+        result = InfererURL(PILimage).run()
+
     """
     parser = argparse.ArgumentParser()
     # parser.add_argument('--gpu', help='Comma separated list of GPU(s) to use.', default="0")
     parser.add_argument('--input_img', help='Full path to input image', required=True)
-    parser.add_argument('--save_dir', help='Path to the directory to save result', required=True)
+    parser.add_argument('--save_dir', help='Path to the directory to save result')
     args = parser.parse_args()
 
     # if args.gpu:
     #     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     # n_gpus = len(args.gpu.split(','))
 
-    inferer = InfererURL(args.input_img, args.save_dir)
-    inferer.run(logging=True, only_contours=True)
+    # to save predictions use 'run_save'
+    # InfererURL(args.input_img).run_save(save_dir=args.save_dir)
+
+    result = timer(InfererURL(args.input_img).run)
+    
