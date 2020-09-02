@@ -14,8 +14,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from scripts.viz_utils import visualize_instances
-import scripts.process_utils as proc_utils
+from hover_serving.src.scripts.viz_utils import visualize_instances
+import hover_serving.src.scripts.process_utils as proc_utils
 
 def timer(func, *args, **kwargs):
     start_time = timeit.default_timer()
