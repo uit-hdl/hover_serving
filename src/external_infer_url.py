@@ -44,6 +44,7 @@ class InfererURL():
         self.mask_shape = data_config['step_size']
         self.input_shape = data_config['win_size']
         self.nr_types = data_config['nr_types']
+        self.nuclei_types = data_config['nuclei_types']
         self.input_norm = data_config['input_norm']
         self.remap_labels = data_config['remap_labels']
 
@@ -235,11 +236,24 @@ class InfererURL():
 
     def run(self):
         pred_map = self.__gen_prediction(self.input_img)
-        pred_inst, pred_type = self.__process_instance(pred_map)
+        pred_inst, _ = self.__process_instance(pred_map)
         pred_inst = np.expand_dims(pred_inst, -1)
         pred_inst[pred_inst > 0] = 1
         return pred_inst
 
+    def run_type(self, type_nuclei=None):
+        pred_map = self.__gen_prediction(self.input_img)
+        _, pred_type = self.__process_instance(pred_map)
+        pred_type = np.expand_dims(pred_type, -1)
+
+        if type_nuclei is not None:
+            assert (type_nuclei in self.nuclei_types.keys())
+            pred_nuclei = pred_type
+            pred_nuclei[pred_nuclei != self.nuclei_types[type_nuclei]] = 0
+            pred_nuclei[pred_nuclei == self.nuclei_types[type_nuclei]] = 1
+            return pred_nuclei
+        else:
+            return pred_type
 
 if __name__ == '__main__':
     """
@@ -265,12 +279,12 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', help='Path to the directory to save result')
     args = parser.parse_args()
 
-    # if args.gpu:
-    #     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    # n_gpus = len(args.gpu.split(','))
-
     # to save predictions use 'run_save'
     # InfererURL(args.input_img).run_save(save_dir=args.save_dir)
 
-    result = timer(InfererURL(args.input_img).run)
+    # get segmentation masks
+    # result = timer(InfererURL(args.input_img).run)
+
+    # get specific nuclei type, if type_nuclei='Inflammatory' - returns mask with several classes [0, len(self.nuclei_types)]
+    # result = timer(InfererURL(args.input_img).run_type, type_nuclei='Inflammatory')
     
