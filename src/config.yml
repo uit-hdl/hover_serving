@@ -8,7 +8,7 @@ hv_seg_class_consep:
     Misc: 1
     Inflammatory: 2
     Epithelial: 3
-    Spindle': 4
+    Spindle: 4
 
   input_norm: True
   remap_labels: False
