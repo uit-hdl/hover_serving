@@ -1,4 +1,4 @@
-# This is repository for inference only code for HoVer-Net
+# This is repository for inference only code for HoVer-Net we use in [Histology viewer](https://github.com/uit-hdl/histology)
 
 Main repository is [hovernet-pipeline](https://github.com/uit-hdl/hovernet-pipeline)
 
