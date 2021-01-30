@@ -16,6 +16,7 @@ from PIL import Image
 
 from hover_serving.src.scripts.viz_utils import visualize_instances
 import hover_serving.src.scripts.process_utils as proc_utils
+
 # for local
 # from scripts.viz_utils import visualize_instances
 # import scripts.process_utils as proc_utils
@@ -46,16 +47,15 @@ class InfererURL():
 
         self.mask_shape = data_config['step_size']
         self.input_shape = data_config['win_size']
-        self.nr_types = data_config['nr_types']
         self.nuclei_types = data_config['nuclei_types']
-        self.input_norm = data_config['input_norm']
-        self.remap_labels = data_config['remap_labels']
 
-        self.inf_batch_size = 25
+        self.nr_types = len(self.nuclei_types.values()) + 1
+        self.input_norm = True      # data_config['input_norm']
+        self.remap_labels = False   # data_config['remap_labels']
+        self.inf_batch_size = 25    # data_config['inf_batch_size']
+
         self.eval_inf_input_tensor_names = ['images:0']
         self.eval_inf_output_tensor_names = ['predmap-coded:0']
-
-        # self.save_dir = save_dir
 
         # if it is PIL image
         if isinstance(input_img, Image.Image):
