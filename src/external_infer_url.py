@@ -341,13 +341,20 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser()
     # parser.add_argument('--gpu', help='Comma separated list of GPU(s) to use.', default="0")
-    parser.add_argument("--input_img", help="Full path to input image")
+    parser.add_argument("--input_img", help="Full path to input image", required=True)
     parser.add_argument("--save_dir", help="Path to the directory to save result")
+    parser.add_argument("--model_name", help="Model to use", required=True)
     args = parser.parse_args()
-    ### InfererURL(input_img, model, server_url="", profile="", batch_size=15)
+
+    ### get available models on tf-serving
+    # get_available_models('http://localhost')
     ### Models (check via <get_available_models>): consep_aug, consep_original, pannuke_aug, pannuke_original
 
-    inferer = InfererURL(args.input_img, 'consep_aug', server_url='http://localhost', profile="hv_consep")
+    ##########################################################################
+    ### InfererURL(input_img, model, server_url="", profile="", batch_size=15)
+
+    ### server_url and profile are set up via os.env
+    inferer = InfererURL(args.input_img, args.model_name)
 
     ### to save predictions use 'run_save'
     # inferer.run_save(save_dir=args.save_dir)
@@ -358,5 +365,4 @@ if __name__ == "__main__":
     ### get specific nuclei type, if type_nuclei='Inflammatory' - returns mask with several classes [0, len(self.nuclei_types)]
     # result = timer(inferer.run_type, type_nuclei='Inflammatory')
 
-    ### get available models on tf-serving
-    # get_available_models('http://localhost')
+    
