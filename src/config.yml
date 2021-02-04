@@ -15,6 +15,6 @@ hv_pannuke:
     # Background: 0
     Inflammatory: 1
     Connective: 2
-    Dead Cells: 3
+    Dead cells: 3
     Epithelial: 4
     Neoplastic cells: 5

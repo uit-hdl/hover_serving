@@ -19,33 +19,9 @@ def normalize(mask, dtype=np.uint8):
     return (255 * mask / np.amax(mask)).astype(dtype)
 
 
-def class_colour(class_value):
-    """
-    Generate RGB colour for overlay based on class id
-    Args:
-        class_value: integer denoting the class of object
-    """
-    if class_value == 0:
-        return 0, 0, 0  # black (background)
-    if class_value == 1:
-        return 255, 0, 0  # red
-    elif class_value == 2:
-        return 0, 255, 0  # green
-    elif class_value == 3:
-        return 0, 0, 255  # blue
-    elif class_value == 4:
-        return 255, 255, 0  # yellow
-    elif class_value == 5:
-        return 255, 165, 0  # orange
-    elif class_value == 6:
-        return 0, 255, 255  # cyan
-    else:
-        raise Exception(
-            'Currently, overlay_segmentation_results() only supports up to 6 classes.')
-####
-
-
-def visualize_instances(input_image, predict_instance, predict_type=None, line_thickness=2):
+def visualize_instances(
+    input_image, color_dict, predict_instance, predict_type=None, line_thickness=2
+):
     """
     Overlays segmentation results on image as contours
     Args:
@@ -75,7 +51,8 @@ def visualize_instances(input_image, predict_instance, predict_type=None, line_t
         contours = []
         for inst_id in instances_list:
             instance_map = np.array(
-                predict_instance == inst_id, np.uint8)  # get single object
+                predict_instance == inst_id, np.uint8
+            )  # get single object
             y1, y2, x1, x2 = bounding_box(instance_map)
             y1 = y1 - 2 if y1 - 2 >= 0 else y1
             x1 = x1 - 2 if x1 - 2 >= 0 else x1
@@ -83,12 +60,19 @@ def visualize_instances(input_image, predict_instance, predict_type=None, line_t
             y2 = y2 + 2 if y2 + 2 <= predict_instance.shape[0] - 1 else y2
             inst_map_crop = instance_map[y1:y2, x1:x2]
             contours_crop = cv2.findContours(
-                inst_map_crop, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                inst_map_crop, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+            )
             index_correction = np.asarray([[[[x1, y1]]]])
             for i in range(len(contours_crop[0])):
                 contours.append(
-                    list(np.asarray(contours_crop[0][i].astype('int32')) + index_correction))
+                    list(
+                        np.asarray(contours_crop[0][i].astype("int32"))
+                        + index_correction
+                    )
+                )
         contours = list(itertools.chain(*contours))
-        cv2.drawContours(overlay, np.asarray(contours), -1,
-                         class_colour(iter_type), line_thickness)
+
+        cv2.drawContours(
+            overlay, np.asarray(contours), -1, color_dict[iter_type], line_thickness
+        )
     return overlay

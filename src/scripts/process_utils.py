@@ -30,8 +30,12 @@ def proc_np_hv(pred, return_coords=False):
     blb = remove_small_objects(blb, min_size=10)
     blb[blb > 0] = 1  # background is 0 already
 
-    h_dir = cv2.normalize(h_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-    v_dir = cv2.normalize(v_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+    h_dir = cv2.normalize(
+        h_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
+    )
+    v_dir = cv2.normalize(
+        v_dir_raw, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
+    )
     h_dir_raw = None
     v_dir_raw = None
 
@@ -40,8 +44,16 @@ def proc_np_hv(pred, return_coords=False):
     h_dir = None
     v_dir = None
 
-    sobelh = 1 - (cv2.normalize(sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
-    sobelv = 1 - (cv2.normalize(sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F))
+    sobelh = 1 - (
+        cv2.normalize(
+            sobelh, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
+        )
+    )
+    sobelv = 1 - (
+        cv2.normalize(
+            sobelv, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F
+        )
+    )
 
     overall = np.maximum(sobelh, sobelv)
     sobelh = None
@@ -58,7 +70,7 @@ def proc_np_hv(pred, return_coords=False):
     marker = blb - overall
     overall = None
     marker[marker < 0] = 0
-    marker = binary_fill_holes(marker).astype('uint8')
+    marker = binary_fill_holes(marker).astype("uint8")
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     marker = cv2.morphologyEx(marker, cv2.MORPH_OPEN, kernel)
     marker = measurements.label(marker)[0]
