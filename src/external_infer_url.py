@@ -5,6 +5,7 @@ import argparse
 import json
 import requests
 import yaml
+import re
 
 from tempfile import NamedTemporaryFile
 from datetime import datetime
@@ -347,7 +348,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     ### get available models on tf-serving
-    # get_available_models('http://localhost')
+    # print (get_available_models('http://localhost'))
     ### Models (check via <get_available_models>): consep_aug, consep_original, pannuke_aug, pannuke_original
 
     ##########################################################################
