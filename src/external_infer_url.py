@@ -243,6 +243,8 @@ class InfererURL:
         subpatch : numpy.ndarray
         inputs - outputs
         instances - predictions
+
+        Warning, subpatch is in NCHW
         """
         response = requests.post(
             self.endpoint, data=json.dumps({"inputs": np.array(subpatch).tolist()})
@@ -345,6 +347,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_img", help="Full path to input image", required=True)
     parser.add_argument("--save_dir", help="Path to the directory to save result")
     parser.add_argument("--model_name", help="Model to use", required=True)
+    parser.add_argument("--batch_size", help="Batch size", type=int, default=15)
     args = parser.parse_args()
 
     ### get available models on tf-serving
@@ -355,7 +358,7 @@ if __name__ == "__main__":
     ### InfererURL(input_img, model, server_url="", profile="", batch_size=15)
 
     ### server_url and profile are set up via os.env
-    inferer = InfererURL(args.input_img, args.model_name)
+    inferer = InfererURL(args.input_img, args.model_name, batch_size=args.batch_size)
 
     ### to save predictions use 'run_save'
     # inferer.run_save(save_dir=args.save_dir)
