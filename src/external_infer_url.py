@@ -245,11 +245,15 @@ class InfererURL:
         instances - predictions
 
         Warning, subpatch is in NCHW
+        # TODO: ncwh to nhwc
         """
         response = requests.post(
             self.endpoint, data=json.dumps({"inputs": np.array(subpatch).tolist()})
         )
-        return np.array(response.json()["outputs"])  # [0]
+        assert response.status_code == 200, f"{response.text}"
+        if response.status_code == 200:
+            return np.array(response.json()["outputs"])  # [0]
+
 
     def run_save(self, save_dir=None, only_contours=False, logging=False):
 
