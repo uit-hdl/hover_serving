@@ -38,7 +38,7 @@ class InfererURL:
     input_img argument can be PIL image, numpy array or just path to .png file.
     """
 
-    def __init__(self, input_img, model, server_url="", profile="", batch_size=15):
+    def __init__(self, input_img, model, server_url="", profile="", batch_size=30):
         self.server_url = (
             os.environ["SERVER_URL"] if "SERVER_URL" in os.environ else server_url
         )
