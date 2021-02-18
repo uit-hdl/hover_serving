@@ -39,7 +39,7 @@ class InfererURL:
     input_img argument can be PIL image, numpy array or just path to .png file.
     """
 
-    def __init__(self, input_img, model, server_url=None, profile=None, batch_size=30):
+    def __init__(self, input_img, model, server_url=None, batch_size=30):
         self.model = model
 
         self.server_url = (
@@ -47,47 +47,35 @@ class InfererURL:
             if server_url is not None
             else (os.environ["SERVER_URL"] if "SERVER_URL" in os.environ else None)
         )
-        self.model_config = (
-            profile
-            if profile is not None
-            else (os.environ["H_PROFILE"] if "H_PROFILE" in os.environ else None)
-        )
-        if self.model_config is None:
-            if "consep" in self.model:
-                self.model_config = "hv_consep"
-            elif "pannuke" in self.model:
-                self.model_config = "hv_pannuke"
-            warn(
-                f"Setting config to default according to selected model ({self.model}): {self.model_config}",
-                UserWarning,
-            )
-
-        if self.model not in self.model_config:
-            warn(
-                f"Using {self.model} model with classes from {self.model_config}!",
-                ResourceWarning,
-            )
 
         self.endpoint = f"{self.server_url}:8501/v1/models/{self.model}:predict"
         assert requests.get(":".join(self.endpoint.split(":")[:-1])).ok is True
 
-        data_config = defaultdict(
-            lambda: None,
-            yaml.load(open("config.yml"), Loader=yaml.FullLoader)[self.model_config],
-        )
-
         if "consep" in self.model:
             self.mask_shape = [80, 80]
             self.input_shape = [270, 270]
+            self.nuclei_types = {
+                # Background: 0
+                "Misc": 1,
+                "Inflammatory": 2,
+                "Epithelial": 3,
+                "Spindle": 4,
+            }
         elif "pannuke" in self.model:
             self.mask_shape = [164, 164]
             self.input_shape = [256, 256]
-
-        self.nuclei_types = data_config["nuclei_types"]
+            self.nuclei_types = {
+                # Background: 0
+                "Inflammatory": 1,
+                "Connective": 2,
+                "Dead cells": 3,
+                "Epithelial": 4,
+                "Neoplastic cells": 5,
+            }
 
         self.nr_types = len(self.nuclei_types.values()) + 1
-        self.input_norm = True  # data_config['input_norm']
-        self.remap_labels = False  # data_config['remap_labels']
+        self.input_norm = True
+        self.remap_labels = False
         self.inf_batch_size = batch_size
 
         self.eval_inf_input_tensor_names = ["images:0"]
@@ -366,19 +354,17 @@ def get_available_models(server_url, port=8502):
 if __name__ == "__main__":
     """
     Example: 
-        H_PROFILE=hv_consep \
         SERVER_URL=http://localhost \
         python external_infer_url.py --input_img '/data/input/data_consep/data/test/Images/test_1.png' --save_dir '/data/output/'
 
         or
 
-        H_PROFILE=hv_pannuke \
         SERVER_URL=http://localhost \
         python external_infer_url.py --input_img '/data/input/data_consep/data/test/Images/test_1.png'
 
         or
 
-        result = InfererURL(PILimage, 'consep_aug', server_url='http://localhost', profile="hv_consep").run()
+        result = InfererURL(PILimage, 'consep_aug', server_url='http://localhost').run()
 
     """
     parser = argparse.ArgumentParser()
@@ -394,9 +380,9 @@ if __name__ == "__main__":
     ### Models (check via <get_available_models>): consep_aug, consep_original, pannuke_aug, pannuke_original
 
     ##########################################################################
-    ### InfererURL(input_img, model, server_url=None, profile=None, batch_size=30)
+    ### InfererURL(input_img, model, server_url=None, batch_size=30)
 
-    ### server_url and profile are set up via os.env
+    ### server_url  are set up via os.env
     inferer = InfererURL(args.input_img, args.model_name, batch_size=args.batch_size)
 
     ### to save predictions use 'run_save'
