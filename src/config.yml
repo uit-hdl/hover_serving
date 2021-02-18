@@ -1,6 +1,4 @@
 hv_consep:
-  step_size: [80, 80]
-  win_size: [270, 270]
   nuclei_types:
     # Background: 0
     Misc: 1
@@ -9,8 +7,6 @@ hv_consep:
     Spindle: 4
 
 hv_pannuke:
-  step_size: [164, 164]
-  win_size: [256, 256]
   nuclei_types: # check GT if used with original model
     # Background: 0
     Inflammatory: 1

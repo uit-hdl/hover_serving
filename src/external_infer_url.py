@@ -10,6 +10,7 @@ import re
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 from collections import deque, defaultdict
+from warnings import warn
 
 import cv2
 import numpy as np
@@ -38,28 +39,50 @@ class InfererURL:
     input_img argument can be PIL image, numpy array or just path to .png file.
     """
 
-    def __init__(self, input_img, model, server_url="", profile="", batch_size=30):
+    def __init__(self, input_img, model, server_url=None, profile=None, batch_size=30):
+        self.model = model
+
         self.server_url = (
-            os.environ["SERVER_URL"] if "SERVER_URL" in os.environ else server_url
+            server_url
+            if server_url is not None
+            else (os.environ["SERVER_URL"] if "SERVER_URL" in os.environ else None)
         )
         self.model_config = (
-            os.environ["H_PROFILE"] if "H_PROFILE" in os.environ else profile
+            profile
+            if profile is not None
+            else (os.environ["H_PROFILE"] if "H_PROFILE" in os.environ else None)
         )
+        if self.model_config is None:
+            if "consep" in self.model:
+                self.model_config = "hv_consep"
+            elif "pannuke" in self.model:
+                self.model_config = "hv_pannuke"
+            warn(
+                f"Setting config to default according to selected model ({self.model}): {self.model_config}",
+                UserWarning,
+            )
 
-        self.model = model
+        if self.model not in self.model_config:
+            warn(
+                f"Using {self.model} model with classes from {self.model_config}!",
+                ResourceWarning,
+            )
+
         self.endpoint = f"{self.server_url}:8501/v1/models/{self.model}:predict"
-
         assert requests.get(":".join(self.endpoint.split(":")[:-1])).ok is True
-        
-        assert self.model_config != ""
 
         data_config = defaultdict(
             lambda: None,
             yaml.load(open("config.yml"), Loader=yaml.FullLoader)[self.model_config],
         )
 
-        self.mask_shape = data_config["step_size"]
-        self.input_shape = data_config["win_size"]
+        if "consep" in self.model:
+            self.mask_shape = [80, 80]
+            self.input_shape = [270, 270]
+        elif "pannuke" in self.model:
+            self.mask_shape = [164, 164]
+            self.input_shape = [256, 256]
+
         self.nuclei_types = data_config["nuclei_types"]
 
         self.nr_types = len(self.nuclei_types.values()) + 1
@@ -71,21 +94,33 @@ class InfererURL:
         self.eval_inf_output_tensor_names = ["predmap-coded:0"]
 
         self.colors = {
-            "Inflammatory": (0.0, 255.0, 0.0),      # bright green
-            "Dead cells": (255.0, 255.0, 0.0),      # bright yellow
-            "Neoplastic cells": (255.0, 0.0, 0.0),  # red           # aka Epithelial malignant
-            "Epithelial": (0.0, 0.0, 255.0),        # dark blue     # aka Epithelial healthy
-            "Misc": (0.0, 0.0, 0.0),                # pure black    # aka 'garbage class'
-            "Spindle": (0.0, 255.0, 255.0),         # cyan          # Fibroblast, Muscle and Endothelial cells
-            "Connective": (0.0, 220.0, 220.0),      # darker cyan   # Connective plus Soft tissue cells
-            "Background": (255.0, 0.0, 170.0),      # pink
+            "Inflammatory": (0.0, 255.0, 0.0),  # bright green
+            "Dead cells": (255.0, 255.0, 0.0),  # bright yellow
+            "Neoplastic cells": (
+                255.0,
+                0.0,
+                0.0,
+            ),  # red           # aka Epithelial malignant
+            "Epithelial": (0.0, 0.0, 255.0),  # dark blue     # aka Epithelial healthy
+            "Misc": (0.0, 0.0, 0.0),  # pure black    # aka 'garbage class'
+            "Spindle": (
+                0.0,
+                255.0,
+                255.0,
+            ),  # cyan          # Fibroblast, Muscle and Endothelial cells
+            "Connective": (
+                0.0,
+                220.0,
+                220.0,
+            ),  # darker cyan   # Connective plus Soft tissue cells
+            "Background": (255.0, 0.0, 170.0),  # pink
             ###
-            "light green": (170.0, 255.0, 0.0),     # light green
-            "purple": (170.0, 0.0, 255.0),          # purple
-            "orange": (255.0, 170.0, 0.0),          # orange
-            "black": (32.0, 32.0, 32.0),            # black
+            "light green": (170.0, 255.0, 0.0),  # light green
+            "purple": (170.0, 0.0, 255.0),  # purple
+            "orange": (255.0, 170.0, 0.0),  # orange
+            "black": (32.0, 32.0, 32.0),  # black
         }
-        
+
         self.color_mapping = {v: k for k, v in self.nuclei_types.items()}
         for key in self.color_mapping:
             self.color_mapping[key] = self.colors[self.color_mapping[key]]
@@ -254,7 +289,6 @@ class InfererURL:
         if response.status_code == 200:
             return np.array(response.json()["outputs"])  # [0]
 
-
     def run_save(self, save_dir=None, only_contours=False, logging=False):
 
         assert save_dir is not None
@@ -320,6 +354,7 @@ class InfererURL:
         else:
             return pred_type
 
+
 def get_available_models(server_url, port=8502):
     models = []
     response = requests.get(f"{server_url}:{port}/config")
@@ -359,7 +394,7 @@ if __name__ == "__main__":
     ### Models (check via <get_available_models>): consep_aug, consep_original, pannuke_aug, pannuke_original
 
     ##########################################################################
-    ### InfererURL(input_img, model, server_url="", profile="", batch_size=15)
+    ### InfererURL(input_img, model, server_url=None, profile=None, batch_size=30)
 
     ### server_url and profile are set up via os.env
     inferer = InfererURL(args.input_img, args.model_name, batch_size=args.batch_size)
@@ -372,5 +407,3 @@ if __name__ == "__main__":
 
     ### get specific nuclei type, if type_nuclei='Inflammatory' - returns mask with several classes [0, len(self.nuclei_types)]
     # result = timer(inferer.run_type, type_nuclei='Inflammatory')
-
-    
