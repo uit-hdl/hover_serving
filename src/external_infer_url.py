@@ -15,13 +15,14 @@ from warnings import warn
 import cv2
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 
 from hover_serving.src.scripts.viz_utils import visualize_instances
 import hover_serving.src.scripts.process_utils as proc_utils
 
 ## for local
-# from scripts.viz_utils import visualize_instances
-# import scripts.process_utils as proc_utils
+#from scripts.viz_utils import visualize_instances
+#import scripts.process_utils as proc_utils
 
 
 def timer(func, *args, **kwargs):
@@ -116,7 +117,8 @@ class InfererURL:
         # if it is PIL image
         if isinstance(input_img, Image.Image):
             self.input_img = cv2.cvtColor(
-                np.array(input_img, dtype=np.float32), cv2.COLOR_BGR2RGB
+                cv2.cvtColor(np.array(input_img, dtype=np.float32), cv2.COLOR_RGB2BGR),
+                cv2.COLOR_BGR2RGB,
             )
         # if it is np array (f.eks. cv2 image)
         elif isinstance(input_img, np.ndarray):
@@ -172,11 +174,15 @@ class InfererURL:
         while len(sub_patches) > self.inf_batch_size:
             mini_batch = sub_patches[: self.inf_batch_size]
             sub_patches = sub_patches[self.inf_batch_size :]
+            print ("size of mini_batch:", np.shape(mini_batch))
             mini_output = self.__predict_subpatch(mini_batch)
+            print ("size of mini_output:", np.shape(mini_output))
             mini_output = np.split(mini_output, self.inf_batch_size, axis=0)
             pred_map.extend(mini_output)
         if len(sub_patches) != 0:
+            print ("size of sub_patches:", np.shape(sub_patches))
             mini_output = self.__predict_subpatch(sub_patches)
+            print ("size of mini:", np.shape(mini_output))
             mini_output = np.split(mini_output, len(sub_patches), axis=0)
             pred_map.extend(mini_output)
 
@@ -246,10 +252,14 @@ class InfererURL:
                 if len(type_list) > 1:
                     inst_type = type_list[1][0]
             pred_type_out += inst_tmp * inst_type
-        pred_type_out = pred_type_out.astype(output_dtype)
-        pred_inst = pred_inst.astype(output_dtype)
 
-        return pred_inst, pred_type_out
+            pred_inst_type[idx] = inst_type
+
+        pred_type_out = pred_type_out.astype(output_dtype)
+        pred_inst_out = pred_inst.astype(output_dtype)
+        inst_type_out = pred_inst_type[:, None]
+
+        return pred_inst_out, pred_type_out, inst_type_out
         # pred = {'inst_map': pred_inst,
         #         'type_map': pred_type,
         #         'inst_type': pred_inst_type[:, None],
@@ -288,7 +298,7 @@ class InfererURL:
         # np.save(f"{name_out}_map.npy", pred_map)
 
         pred_map = self.__gen_prediction(self.input_img)
-        pred_inst, pred_type = self.__process_instance(pred_map)
+        pred_inst, pred_type, _ = self.__process_instance(pred_map)
 
         if only_contours:
             pred_inst = np.expand_dims(pred_inst, -1)
@@ -320,27 +330,49 @@ class InfererURL:
             print(
                 f"Saved pred to <{name_out}.npy>. {datetime.now().strftime('%H:%M:%S')}"
             )
+    
 
-    def run(self):
+    def _run_count(self, pred_inst_type, type_nuclei_list=None):
+        unique, counts = np.unique(pred_inst_type, return_counts=True)
+        type_counts = dict(zip(unique, counts))
+        result = {}
+        type_nuclei = self.nuclei_types if type_nuclei_list is None else {k:v for k,v in self.nuclei_types.items() if k in type_nuclei_list}
+        for str_type, code in type_nuclei.items():
+            if code in type_counts.keys():
+                result[str_type] = type_counts[type_nuclei[str_type]]
+        return result
+
+
+    def run_inst(self):
         pred_map = self.__gen_prediction(self.input_img)
-        pred_inst, _ = self.__process_instance(pred_map)
+        pred_inst, _ , _ = self.__process_instance(pred_map)
         pred_inst = np.expand_dims(pred_inst, -1)
         pred_inst[pred_inst > 0] = 1
         return pred_inst
 
-    def run_type(self, type_nuclei=None):
+    def run_type(self, type_nuclei_list=None):
         pred_map = self.__gen_prediction(self.input_img)
-        _, pred_type = self.__process_instance(pred_map)
+        _, pred_type, pred_inst_type = self.__process_instance(pred_map)
         pred_type = np.expand_dims(pred_type, -1)
 
-        if type_nuclei is not None:
-            assert type_nuclei in self.nuclei_types.keys()
+        counts = self._run_count(pred_inst_type, type_nuclei_list)
+        print (counts)
+        # Sort only provided types. Example type_nuclei_list = ["Inflammatory", "Epitelial"]
+        if type_nuclei_list is not None:
+
+            assert all(item in list(self.nuclei_types.keys()) for item in type_nuclei_list)
+
+            filtered_types_dict = {k: self.nuclei_types[k] for k in type_nuclei_list}
             pred_nuclei = pred_type
-            pred_nuclei[pred_nuclei != self.nuclei_types[type_nuclei]] = 0
-            pred_nuclei[pred_nuclei == self.nuclei_types[type_nuclei]] = 1
-            return pred_nuclei
+
+            uniques = sorted(np.unique(pred_nuclei))
+            for val in uniques:
+                if val not in filtered_types_dict.values():
+                    pred_nuclei[pred_nuclei==val] = 0
+            return pred_nuclei, counts
         else:
-            return pred_type
+            return pred_type, counts
+
 
 
 def get_available_models(server_url, port=8502):
@@ -349,47 +381,3 @@ def get_available_models(server_url, port=8502):
     for model in re.findall(r"name: '\w*'", response.text):
         models.append(model.split(": ")[1].strip("'"))
     return models
-
-
-if __name__ == "__main__":
-    """
-    Example: 
-        SERVER_URL=http://localhost \
-        python external_infer_url.py --input_img '/data/input/data_consep/data/test/Images/test_1.png' --save_dir '/data/output/'
-
-        or
-
-        SERVER_URL=http://localhost \
-        python external_infer_url.py --input_img '/data/input/data_consep/data/test/Images/test_1.png'
-
-        or
-
-        result = InfererURL(PILimage, 'consep_aug', server_url='http://localhost').run()
-
-    """
-    parser = argparse.ArgumentParser()
-    # parser.add_argument('--gpu', help='Comma separated list of GPU(s) to use.', default="0")
-    parser.add_argument("--input_img", help="Full path to input image", required=True)
-    parser.add_argument("--save_dir", help="Path to the directory to save result")
-    parser.add_argument("--model_name", help="Model to use", required=True)
-    parser.add_argument("--batch_size", help="Batch size", type=int, default=15)
-    args = parser.parse_args()
-
-    ### get available models on tf-serving
-    # print (get_available_models('http://localhost'))
-    ### Models (check via <get_available_models>): consep_aug, consep_original, pannuke_aug, pannuke_original
-
-    ##########################################################################
-    ### InfererURL(input_img, model, server_url=None, batch_size=30)
-
-    ### server_url  are set up via os.env
-    inferer = InfererURL(args.input_img, args.model_name, batch_size=args.batch_size)
-
-    ### to save predictions use 'run_save'
-    # inferer.run_save(save_dir=args.save_dir)
-
-    ### get segmentation masks
-    # result = timer(inferer.run)
-
-    ### get specific nuclei type, if type_nuclei='Inflammatory' - returns mask with several classes [0, len(self.nuclei_types)]
-    # result = timer(inferer.run_type, type_nuclei='Inflammatory')
