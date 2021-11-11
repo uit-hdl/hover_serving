@@ -74,6 +74,16 @@ class InfererURL:
                 "Neoplastic cells": 5,
             }
 
+        elif "monusac" in self.model:
+            self.mask_shape = [164, 164]
+            self.input_shape = [256, 256]
+            self.nuclei_types = {
+                "Epithelial": 1, 
+                "Lymphocyte": 2, 
+                "Macrophage": 3, 
+                "Neutrophil": 4,
+            }
+
         self.nr_types = len(self.nuclei_types.values()) + 1
         self.input_norm = True
         self.remap_labels = False
@@ -85,28 +95,16 @@ class InfererURL:
         self.colors = {
             "Inflammatory": (0.0, 255.0, 0.0),  # bright green
             "Dead cells": (255.0, 255.0, 0.0),  # bright yellow
-            "Neoplastic cells": (
-                255.0,
-                0.0,
-                0.0,
-            ),  # red           # aka Epithelial malignant
-            "Epithelial": (0.0, 0.0, 255.0),  # dark blue     # aka Epithelial healthy
-            "Misc": (0.0, 0.0, 0.0),  # pure black    # aka 'garbage class'
-            "Spindle": (
-                0.0,
-                255.0,
-                255.0,
-            ),  # cyan          # Fibroblast, Muscle and Endothelial cells
-            "Connective": (
-                0.0,
-                220.0,
-                220.0,
-            ),  # darker cyan   # Connective plus Soft tissue cells
+            "Neoplastic cells": (255.0, 0.0, 0.0),  # red  # aka Epithelial malignant
+            "Epithelial": (0.0, 0.0, 255.0),  # dark blue  # aka Epithelial healthy
+            "Misc": (0.0, 0.0, 0.0),  # pure black  # aka 'garbage class'
+            "Spindle": (0.0, 255.0, 255.0),  # cyan  # Fibroblast, Muscle and Endothelial cells
+            "Connective": (0.0, 220.0, 220.0),  # darker cyan    # Connective plus Soft tissue cells
             "Background": (255.0, 0.0, 170.0),  # pink
             ###
-            "light green": (170.0, 255.0, 0.0),  # light green
-            "purple": (170.0, 0.0, 255.0),  # purple
-            "orange": (255.0, 170.0, 0.0),  # orange
+            "Lymphocyte": (170.0, 255.0, 0.0),  # light green
+            "Macrophage": (170.0, 0.0, 255.0),  # purple
+            "Neutrophil": (255.0, 170.0, 0.0),  # orange
             "black": (32.0, 32.0, 32.0),  # black
         }
 
