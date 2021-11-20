@@ -172,15 +172,15 @@ class InfererURL:
         while len(sub_patches) > self.inf_batch_size:
             mini_batch = sub_patches[: self.inf_batch_size]
             sub_patches = sub_patches[self.inf_batch_size :]
-            print ("size of mini_batch:", np.shape(mini_batch))
+            #print ("size of mini_batch:", np.shape(mini_batch))
             mini_output = self.__predict_subpatch(mini_batch)
-            print ("size of mini_output:", np.shape(mini_output))
+            #print ("size of mini_output:", np.shape(mini_output))
             mini_output = np.split(mini_output, self.inf_batch_size, axis=0)
             pred_map.extend(mini_output)
         if len(sub_patches) != 0:
-            print ("size of sub_patches:", np.shape(sub_patches))
+            #print ("size of sub_patches:", np.shape(sub_patches))
             mini_output = self.__predict_subpatch(sub_patches)
-            print ("size of mini:", np.shape(mini_output))
+            #print ("size of mini:", np.shape(mini_output))
             mini_output = np.split(mini_output, len(sub_patches), axis=0)
             pred_map.extend(mini_output)
 
@@ -354,7 +354,7 @@ class InfererURL:
         pred_type = np.expand_dims(pred_type, -1)
 
         counts = self._run_count(pred_inst_type, type_nuclei_list)
-        print (counts)
+        #print (counts)
         # Sort only provided types. Example type_nuclei_list = ["Inflammatory", "Epitelial"]
         if type_nuclei_list is not None:
 
@@ -370,7 +370,32 @@ class InfererURL:
             return pred_nuclei, counts
         else:
             return pred_type, counts
+    
+    def run(self, type_nuclei_list=None): ###### TODO: type_nuclei_list filter
+        pred_map = self.__gen_prediction(self.input_img)
+        pred_inst, pred_type, pred_inst_type = self.__process_instance(pred_map)
+        pred_type = np.expand_dims(pred_type, -1)
+        
+        pred_inst = np.expand_dims(pred_inst, -1)
+        # pred_inst[pred_inst > 0] = 1
 
+        counts = self._run_count(pred_inst_type, type_nuclei_list)
+        # print (counts)
+        # Sort only provided types. Example type_nuclei_list = ["Inflammatory", "Epitelial"]
+        if type_nuclei_list is not None:
+
+            assert all(item in list(self.nuclei_types.keys()) for item in type_nuclei_list)
+
+            filtered_types_dict = {k: self.nuclei_types[k] for k in type_nuclei_list}
+            pred_nuclei = pred_type
+
+            uniques = sorted(np.unique(pred_nuclei))
+            for val in uniques:
+                if val not in filtered_types_dict.values():
+                    pred_nuclei[pred_nuclei==val] = 0
+            return pred_inst, pred_nuclei, counts
+        else:
+            return pred_inst, pred_type, counts
 
 
 def get_available_models(server_url, port=8502):

@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
-from skimage.morphology import remove_small_objects, watershed
+from skimage.morphology import remove_small_objects
+from skimage.segmentation import watershed
 from scipy.ndimage import filters, measurements
 from scipy.ndimage.morphology import binary_dilation, binary_fill_holes
 
