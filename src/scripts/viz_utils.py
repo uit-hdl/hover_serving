@@ -1,7 +1,13 @@
 import cv2
 import numpy as np
 import itertools
+import shutil
+import os
 
+def rm_n_mkdir(dir_path):
+    if os.path.isdir(dir_path):
+        shutil.rmtree(dir_path)
+    os.makedirs(dir_path)
 
 def bounding_box(img):
     rows = np.any(img, axis=1)
